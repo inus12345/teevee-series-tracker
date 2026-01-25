@@ -279,11 +279,28 @@ def wikipedia_sources(min_year: int, max_year: int) -> Iterable[tuple[str, int, 
         )
 
 
+def wikipedia_collection_sources() -> Iterable[tuple[str, int | None, str]]:
+    collections = [
+        ("https://en.wikipedia.org/wiki/List_of_highest-grossing_films", None, "movie"),
+        ("https://en.wikipedia.org/wiki/List_of_highest-grossing_films_in_the_United_States", None, "movie"),
+        ("https://en.wikipedia.org/wiki/List_of_highest-grossing_animated_films", None, "movie"),
+        ("https://en.wikipedia.org/wiki/List_of_highest-grossing_films_by_year", None, "movie"),
+        ("https://en.wikipedia.org/wiki/List_of_animated_television_series", None, "series"),
+        ("https://en.wikipedia.org/wiki/List_of_drama_television_series", None, "series"),
+        ("https://en.wikipedia.org/wiki/List_of_comedy_television_series", None, "series"),
+    ]
+    for url, year, media_type in collections:
+        yield url, year, media_type
+
+
 def load_catalog_sources() -> Iterable[CatalogItem]:
     current_year = datetime.utcnow().year
     min_year = int(os.getenv("CATALOG_MIN_YEAR", current_year - 1))
     for url, year, media_type in wikipedia_sources(min_year, current_year):
         yield from fetch_wikipedia_titles(url, year, media_type)
+
+    for url, year, media_type in wikipedia_collection_sources():
+        yield from fetch_wikipedia_titles(url, year or current_year, media_type)
 
     if os.getenv("CATALOG_ENABLE_IMDB", "true").lower() == "true":
         yield from fetch_imdb_placeholder()

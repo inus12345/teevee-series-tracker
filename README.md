@@ -42,7 +42,7 @@ python -m app.catalog_refresh --interval-hours 12
 
 ## Notes on scraping
 
-Some sources require API keys or have stricter robots rules. Start with public lists (like Wikipedia) and add compliant sources with proper caching and rate limits.
+Some sources require API keys or have stricter robots rules. Start with public lists (like Wikipedia) and add compliant sources with proper caching and rate limits. The scraper also pulls from Wikipedia “collection” lists (highest-grossing films, genre TV lists) in addition to yearly lists to broaden coverage.
 
 ## IMDb data
 
