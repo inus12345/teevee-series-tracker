@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeeVee Tracker</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">TeeVee Tracker</p>
+        <h1>Track downloaded and watched movies & series.</h1>
+        <p class="subtitle">
+          Keep a running catalog of what you have, what you watched, and what needs
+          to be downloaded. The catalog refreshes from public sources on a schedule.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="refreshCatalog" class="secondary">Refresh catalog</button>
+        <span id="catalogStatus" class="status-pill">Catalog idle</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Add to your library</h2>
+        <form id="libraryForm" class="grid">
+          <label>
+            Title
+            <input type="text" name="title" placeholder="Example: The Bear" required />
+          </label>
+          <label>
+            Status
+            <select name="status">
+              <option value="planned">Planned</option>
+              <option value="downloaded">Downloaded</option>
+              <option value="watching">Watching</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+          <label>
+            Notes
+            <input type="text" name="notes" placeholder="Where stored, tags, etc." />
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="downloaded" />
+            Downloaded
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="watched" />
+            Watched
+          </label>
+          <button type="submit">Add entry</button>
+        </form>
+      </section>
+
+      <section class="split">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Library</h2>
+            <button id="reloadLibrary" class="ghost">Reload</button>
+          </div>
+          <div id="libraryList" class="list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Catalog feed</h2>
+            <button id="reloadCatalog" class="ghost">Reload</button>
+          </div>
+          <div id="catalogList" class="list"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
