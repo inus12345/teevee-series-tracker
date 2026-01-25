@@ -44,6 +44,11 @@ python -m app.catalog_refresh --interval-hours 12
 
 Some sources require API keys or have stricter robots rules. Start with public lists (like Wikipedia) and add compliant sources with proper caching and rate limits. The scraper also pulls from Wikipedia “collection” lists (highest-grossing films, genre TV lists) in addition to yearly lists to broaden coverage.
 
+Additional sources supported:
+- TMDb API (`TMDB_API_KEY`, `TMDB_PAGE_LIMIT`)
+- TVmaze API (`TVMAZE_ENABLED`, `TVMAZE_PAGE_LIMIT`)
+- OMDb API (`OMDB_API_KEY`, `OMDB_QUERIES`)
+
 ## IMDb data
 
 IMDb scraping is enabled by default via their suggestion API and title pages. Configure the queries with `CATALOG_IMDB_QUERIES` (comma-separated) and limit each query with `CATALOG_IMDB_LIMIT`. If you need to reduce scrape intensity, set `CATALOG_IMDB_DETAIL_DELAY_SECONDS` and `CATALOG_WIKI_SUMMARY_DELAY_SECONDS` to add per-item delays. To build a large, accurate catalog, plan to use licensed data sources (e.g., IMDb datasets, TMDB, or other APIs) and add ingestion jobs to `app/scraper.py`.

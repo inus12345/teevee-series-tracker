@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import logging
 import os
 import time
 from typing import Iterable, List
@@ -13,6 +14,11 @@ from bs4 import BeautifulSoup
 USER_AGENT = "TeeVeeTracker/1.0 (+https://example.com)"
 IMDB_SUGGEST_URL = "https://v2.sg.media-imdb.com/suggestion"
 IMDB_TITLE_URL = "https://www.imdb.com/title"
+TMDB_API_URL = "https://api.themoviedb.org/3"
+TVMAZE_API_URL = "https://api.tvmaze.com"
+OMDB_API_URL = "https://www.omdbapi.com"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -265,6 +271,142 @@ def fetch_imdb_title_details(url: str) -> dict:
     return data
 
 
+def fetch_tmdb_titles() -> List[CatalogItem]:
+    api_key = os.getenv("TMDB_API_KEY")
+    if not api_key:
+        return []
+    page_limit = int(os.getenv("TMDB_PAGE_LIMIT", "2"))
+    items: List[CatalogItem] = []
+    for page in range(1, page_limit + 1):
+        for endpoint, media_type in (("movie/popular", "movie"), ("tv/popular", "series")):
+            try:
+                response = requests.get(
+                    f"{TMDB_API_URL}/{endpoint}",
+                    params={"api_key": api_key, "page": page},
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=20,
+                )
+                response.raise_for_status()
+            except requests.RequestException:
+                continue
+            data = response.json()
+            for entry in data.get("results", []):
+                title = entry.get("title") or entry.get("name")
+                if not title:
+                    continue
+                release_date = entry.get("release_date") or entry.get("first_air_date")
+                year = parse_year(release_date)
+                items.append(
+                    CatalogItem(
+                        title=title,
+                        media_type=media_type,
+                        year=year,
+                        source="tmdb",
+                        source_url=f"https://www.themoviedb.org/{'movie' if media_type == 'movie' else 'tv'}/{entry.get('id')}",
+                        external_id=str(entry.get("id")) if entry.get("id") else None,
+                        description=entry.get("overview"),
+                        release_date=release_date,
+                        rating=entry.get("vote_average"),
+                    )
+                )
+    return items
+
+
+def fetch_tvmaze_titles() -> List[CatalogItem]:
+    if os.getenv("TVMAZE_ENABLED", "true").lower() != "true":
+        return []
+    page_limit = int(os.getenv("TVMAZE_PAGE_LIMIT", "2"))
+    items: List[CatalogItem] = []
+    for page in range(page_limit):
+        try:
+            response = requests.get(
+                f"{TVMAZE_API_URL}/shows",
+                params={"page": page},
+                headers={"User-Agent": USER_AGENT},
+                timeout=20,
+            )
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        data = response.json()
+        for entry in data:
+            title = entry.get("name")
+            if not title:
+                continue
+            premiere = entry.get("premiered")
+            items.append(
+                CatalogItem(
+                    title=title,
+                    media_type="series",
+                    year=parse_year(premiere),
+                    source="tvmaze",
+                    source_url=entry.get("url"),
+                    external_id=str(entry.get("id")) if entry.get("id") else None,
+                    description=strip_html(entry.get("summary")),
+                    release_date=premiere,
+                    rating=(entry.get("rating") or {}).get("average"),
+                )
+            )
+    return items
+
+
+def fetch_omdb_titles() -> List[CatalogItem]:
+    api_key = os.getenv("OMDB_API_KEY")
+    if not api_key:
+        return []
+    queries = [
+        query.strip()
+        for query in os.getenv("OMDB_QUERIES", "star,night").split(",")
+        if query.strip()
+    ]
+    items: List[CatalogItem] = []
+    for query in queries:
+        try:
+            response = requests.get(
+                OMDB_API_URL,
+                params={"apikey": api_key, "s": query},
+                headers={"User-Agent": USER_AGENT},
+                timeout=20,
+            )
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        data = response.json()
+        for entry in data.get("Search", []):
+            imdb_id = entry.get("imdbID")
+            title = entry.get("Title")
+            if not title:
+                continue
+            items.append(
+                CatalogItem(
+                    title=title,
+                    media_type="series" if entry.get("Type") == "series" else "movie",
+                    year=parse_year(entry.get("Year")),
+                    source="omdb",
+                    source_url=f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else None,
+                    external_id=imdb_id,
+                    release_date=entry.get("Year"),
+                )
+            )
+    return items
+
+
+def parse_year(value: str | None) -> int | None:
+    if not value:
+        return None
+    for chunk in value.split("-"):
+        chunk = chunk.strip()
+        if chunk.isdigit():
+            return int(chunk)
+    return None
+
+
+def strip_html(value: str | None) -> str | None:
+    if not value:
+        return None
+    return BeautifulSoup(value, "html.parser").get_text(" ", strip=True)
+
+
 def wikipedia_sources(min_year: int, max_year: int) -> Iterable[tuple[str, int, str]]:
     for year in range(max_year, min_year - 1, -1):
         yield (
@@ -304,3 +446,7 @@ def load_catalog_sources() -> Iterable[CatalogItem]:
 
     if os.getenv("CATALOG_ENABLE_IMDB", "true").lower() == "true":
         yield from fetch_imdb_placeholder()
+
+    yield from fetch_tmdb_titles()
+    yield from fetch_tvmaze_titles()
+    yield from fetch_omdb_titles()
