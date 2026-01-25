@@ -1,6 +1,8 @@
 import argparse
 import time
 
+from sqlalchemy import text
+
 from app.db import SessionLocal, engine
 from app.models import Base
 from app.scraper import load_catalog_sources
@@ -11,6 +13,17 @@ def refresh_once() -> int:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        columns = {
+            row[1]
+            for row in db.execute(text("PRAGMA table_info(catalog_titles)")).fetchall()
+        }
+        if "description" not in columns:
+            db.execute(text("ALTER TABLE catalog_titles ADD COLUMN description TEXT"))
+        if "release_date" not in columns:
+            db.execute(text("ALTER TABLE catalog_titles ADD COLUMN release_date TEXT"))
+        if "rating" not in columns:
+            db.execute(text("ALTER TABLE catalog_titles ADD COLUMN rating FLOAT"))
+        db.commit()
         items = load_catalog_sources()
         return upsert_catalog_items(db, items)
     finally:

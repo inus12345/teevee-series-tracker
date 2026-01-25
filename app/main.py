@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal, engine
@@ -33,14 +33,15 @@ def get_db():
 
 def ensure_catalog_schema(db: Session) -> None:
     columns = {
-        row[1] for row in db.execute("PRAGMA table_info(catalog_titles)").fetchall()
+        row[1]
+        for row in db.execute(text("PRAGMA table_info(catalog_titles)")).fetchall()
     }
     if "description" not in columns:
-        db.execute("ALTER TABLE catalog_titles ADD COLUMN description TEXT")
+        db.execute(text("ALTER TABLE catalog_titles ADD COLUMN description TEXT"))
     if "release_date" not in columns:
-        db.execute("ALTER TABLE catalog_titles ADD COLUMN release_date TEXT")
+        db.execute(text("ALTER TABLE catalog_titles ADD COLUMN release_date TEXT"))
     if "rating" not in columns:
-        db.execute("ALTER TABLE catalog_titles ADD COLUMN rating FLOAT")
+        db.execute(text("ALTER TABLE catalog_titles ADD COLUMN rating FLOAT"))
     db.commit()
 
 
