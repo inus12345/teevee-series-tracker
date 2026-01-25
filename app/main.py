@@ -45,7 +45,7 @@ def ensure_catalog_schema(db: Session) -> None:
     db.commit()
 
 
-def refresh_catalog(db: Session) -> int:
+def refresh_catalog(db: Session) -> tuple[int, int]:
     items = load_catalog_sources()
     return upsert_catalog_items(db, items)
 
@@ -107,8 +107,8 @@ def search_catalog(q: str, db: Session = Depends(get_db)):
 
 @app.post("/api/catalog/refresh")
 def refresh_catalog_endpoint(db: Session = Depends(get_db)):
-    created = refresh_catalog(db)
-    return {"added": created}
+    added, updated = upsert_catalog_items(db, load_catalog_sources())
+    return {"added": added, "updated": updated}
 
 
 @app.get("/api/library", response_model=List[LibraryEntryResponse])

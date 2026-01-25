@@ -7,8 +7,9 @@ from app.models import CatalogTitle
 from app.scraper import CatalogItem
 
 
-def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> int:
+def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> tuple[int, int]:
     created = 0
+    updated = 0
     for item in items:
         existing = (
             session.execute(
@@ -24,6 +25,27 @@ def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> int:
             .first()
         )
         if existing:
+            changed = False
+            if item.year and not existing.year:
+                existing.year = item.year
+                changed = True
+            if item.source_url and not existing.source_url:
+                existing.source_url = item.source_url
+                changed = True
+            if item.external_id and not existing.external_id:
+                existing.external_id = item.external_id
+                changed = True
+            if item.description and not existing.description:
+                existing.description = item.description
+                changed = True
+            if item.release_date and not existing.release_date:
+                existing.release_date = item.release_date
+                changed = True
+            if item.rating is not None and existing.rating is None:
+                existing.rating = item.rating
+                changed = True
+            if changed:
+                updated += 1
             continue
         session.add(
             CatalogTitle(
@@ -40,4 +62,4 @@ def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> int:
         )
         created += 1
     session.commit()
-    return created
+    return created, updated

@@ -21,7 +21,7 @@ Open http://127.0.0.1:8000.
 
 ## Catalog refresh
 
-- The scheduler refreshes the catalog every 12 hours, re-scraping configured sources and adding newly discovered titles plus metadata (description, release date, and ratings when available).
+- The scheduler refreshes the catalog every 12 hours, re-scraping configured sources and adding newly discovered titles plus metadata (description, release date, and ratings when available). Existing rows are updated when new metadata becomes available.
 - Use the **Refresh catalog** button for an immediate update.
 - `app/scraper.py` is the place to add more sources (IMDb, TheMovieDB, etc.). Use `CATALOG_MIN_YEAR` to control how far back the Wikipedia ingestion runs, and `CATALOG_FETCH_SUMMARIES=false` if you want to disable per-title summary lookups.
 
@@ -42,3 +42,7 @@ python -m app.catalog_refresh --interval-hours 12
 ## Notes on scraping
 
 Some sources require API keys or have stricter robots rules. Start with public lists (like Wikipedia) and add compliant sources with proper caching and rate limits.
+
+## IMDb data
+
+IMDb does not allow unrestricted scraping. To build a large, accurate catalog, plan to use licensed data sources (e.g., IMDb datasets, TMDB, or other APIs) and add ingestion jobs to `app/scraper.py`.

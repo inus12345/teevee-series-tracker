@@ -9,7 +9,7 @@ from app.scraper import load_catalog_sources
 from app.services import upsert_catalog_items
 
 
-def refresh_once() -> int:
+def refresh_once() -> tuple[int, int]:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -48,14 +48,14 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.once:
-        added = refresh_once()
-        print(f"Catalog refresh completed. Added {added} titles.")
+        added, updated = refresh_once()
+        print(f"Catalog refresh completed. Added {added} titles. Updated {updated}.")
         return
 
     interval_seconds = max(args.interval_hours, 0.25) * 3600
     while True:
-        added = refresh_once()
-        print(f"Catalog refresh completed. Added {added} titles.")
+        added, updated = refresh_once()
+        print(f"Catalog refresh completed. Added {added} titles. Updated {updated}.")
         time.sleep(interval_seconds)
 
 

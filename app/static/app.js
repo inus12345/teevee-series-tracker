@@ -177,7 +177,9 @@ refreshCatalogButton.addEventListener("click", async () => {
   catalogStatusAlt.textContent = "Refreshing...";
   const response = await fetch("/api/catalog/refresh", { method: "POST" });
   const data = await response.json();
-  catalogStatus.textContent = `Added ${data.added} items`;
+  const updatedText =
+    data.updated !== undefined ? `, Updated ${data.updated}` : "";
+  catalogStatus.textContent = `Added ${data.added}${updatedText}`;
   catalogStatusAlt.textContent = new Date().toLocaleString();
   fetchCatalog();
 });
