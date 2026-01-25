@@ -3,6 +3,7 @@ const catalogList = document.getElementById("catalogList");
 const libraryForm = document.getElementById("libraryForm");
 const refreshCatalogButton = document.getElementById("refreshCatalog");
 const catalogStatus = document.getElementById("catalogStatus");
+const catalogStatusAlt = document.getElementById("catalogStatusAlt");
 const reloadLibrary = document.getElementById("reloadLibrary");
 const reloadCatalog = document.getElementById("reloadCatalog");
 
@@ -99,9 +100,11 @@ libraryForm.addEventListener("submit", async (event) => {
 
 refreshCatalogButton.addEventListener("click", async () => {
   catalogStatus.textContent = "Refreshing...";
+  catalogStatusAlt.textContent = "Refreshing...";
   const response = await fetch("/api/catalog/refresh", { method: "POST" });
   const data = await response.json();
   catalogStatus.textContent = `Added ${data.added} items`;
+  catalogStatusAlt.textContent = new Date().toLocaleString();
   fetchCatalog();
 });
 
