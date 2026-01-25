@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import json
 import os
 from typing import Iterable, List
 
@@ -9,6 +10,8 @@ import requests
 from bs4 import BeautifulSoup
 
 USER_AGENT = "TeeVeeTracker/1.0 (+https://example.com)"
+IMDB_SUGGEST_URL = "https://v2.sg.media-imdb.com/suggestion"
+IMDB_TITLE_URL = "https://www.imdb.com/title"
 
 
 @dataclass
@@ -120,7 +123,91 @@ def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[Catalog
 
 
 def fetch_imdb_placeholder() -> List[CatalogItem]:
-    return []
+    queries = [
+        query.strip()
+        for query in os.getenv("CATALOG_IMDB_QUERIES", "star,night").split(",")
+        if query.strip()
+    ]
+    if not queries:
+        return []
+    limit = int(os.getenv("CATALOG_IMDB_LIMIT", "20"))
+    items: List[CatalogItem] = []
+    for query in queries:
+        items.extend(fetch_imdb_suggestions(query, limit))
+    return items
+
+
+def imdb_suggestion_url(query: str) -> str:
+    slug = query[0].lower()
+    return f"{IMDB_SUGGEST_URL}/{slug}/{query}.json"
+
+
+def imdb_title_type_to_media(title_type: str | None) -> str:
+    if not title_type:
+        return "movie"
+    title_type = title_type.lower()
+    if "tv" in title_type or "series" in title_type:
+        return "series"
+    return "movie"
+
+
+def fetch_imdb_suggestions(query: str, limit: int) -> List[CatalogItem]:
+    try:
+        response = requests.get(
+            imdb_suggestion_url(query), headers={"User-Agent": USER_AGENT}, timeout=20
+        )
+        response.raise_for_status()
+    except requests.RequestException:
+        return []
+    data = response.json()
+    results = data.get("d", [])[:limit]
+    items: List[CatalogItem] = []
+    for result in results:
+        title_id = result.get("id")
+        if not title_id:
+            continue
+        title_url = f"{IMDB_TITLE_URL}/{title_id}/"
+        details = fetch_imdb_title_details(title_url)
+        items.append(
+            CatalogItem(
+                title=result.get("l", ""),
+                media_type=imdb_title_type_to_media(result.get("q")),
+                year=result.get("y"),
+                source="imdb",
+                source_url=title_url,
+                external_id=title_id,
+                description=details.get("description"),
+                release_date=details.get("release_date"),
+                rating=details.get("rating"),
+            )
+        )
+    return items
+
+
+def fetch_imdb_title_details(url: str) -> dict:
+    try:
+        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException:
+        return {}
+    soup = BeautifulSoup(response.text, "html.parser")
+    data = {}
+    for script in soup.select("script[type='application/ld+json']"):
+        try:
+            payload = json.loads(script.string or "")
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("@type") in {"Movie", "TVSeries"}:
+            data["description"] = payload.get("description")
+            data["release_date"] = payload.get("datePublished")
+            rating = payload.get("aggregateRating", {}).get("ratingValue")
+            if rating is not None:
+                try:
+                    data["rating"] = float(rating)
+                except (TypeError, ValueError):
+                    data["rating"] = None
+            break
+    return data
 
 
 def wikipedia_sources(min_year: int, max_year: int) -> Iterable[tuple[str, int, str]]:
@@ -143,4 +230,5 @@ def load_catalog_sources() -> Iterable[CatalogItem]:
     for url, year, media_type in wikipedia_sources(min_year, current_year):
         yield from fetch_wikipedia_titles(url, year, media_type)
 
-    yield from fetch_imdb_placeholder()
+    if os.getenv("CATALOG_ENABLE_IMDB", "true").lower() == "true":
+        yield from fetch_imdb_placeholder()
