@@ -24,6 +24,7 @@ Open http://127.0.0.1:8000.
 - The scheduler refreshes the catalog every 12 hours (override with `CATALOG_REFRESH_HOURS`), re-scraping configured sources and adding newly discovered titles plus metadata (description, release date, and ratings when available). Existing rows are updated when new metadata becomes available.
 - Use the **Refresh catalog** button for an immediate update.
 - `app/scraper.py` is the place to add more sources (IMDb, TheMovieDB, etc.). Use `CATALOG_MIN_YEAR` to control how far back the Wikipedia ingestion runs, `CATALOG_FETCH_SUMMARIES=false` if you want to disable per-title summary lookups, and `CATALOG_ENABLE_IMDB=false` to disable IMDb scraping.
+- Episode scraping uses IMDb season pages. Control it with `CATALOG_EPISODES_ENABLED`, `CATALOG_IMDB_EPISODE_SEASON`, and `CATALOG_IMDB_EPISODE_LIMIT`.
 
 ### Dedicated refresh worker
 

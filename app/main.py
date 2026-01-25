@@ -11,15 +11,16 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal, engine
-from app.models import Base, CatalogTitle, LibraryEntry
+from app.models import Base, CatalogTitle, Episode, LibraryEntry
 from app.schemas import (
     CatalogTitleResponse,
+    EpisodeResponse,
     LibraryEntryCreate,
     LibraryEntryResponse,
     LibraryEntryUpdate,
 )
-from app.scraper import load_catalog_sources
-from app.services import upsert_catalog_items
+from app.scraper import fetch_imdb_episodes, load_catalog_sources
+from app.services import upsert_catalog_items, upsert_episode_items
 
 scheduler = BackgroundScheduler()
 REFRESH_INTERVAL_HOURS = float(os.getenv("CATALOG_REFRESH_HOURS", "12"))
@@ -52,6 +53,45 @@ def refresh_catalog(db: Session) -> tuple[int, int]:
     return upsert_catalog_items(db, items)
 
 
+def refresh_series_episodes(db: Session) -> tuple[int, int]:
+    if os.getenv("CATALOG_EPISODES_ENABLED", "true").lower() != "true":
+        return 0, 0
+    season = int(os.getenv("CATALOG_IMDB_EPISODE_SEASON", "1"))
+    limit = int(os.getenv("CATALOG_IMDB_EPISODE_LIMIT", "25"))
+    created = 0
+    updated = 0
+    series = (
+        db.execute(
+            select(CatalogTitle)
+            .where(
+                CatalogTitle.source == "imdb",
+                CatalogTitle.media_type == "series",
+                CatalogTitle.external_id.isnot(None),
+            )
+            .order_by(CatalogTitle.id)
+        )
+        .scalars()
+        .all()
+    )
+    for entry in series:
+        episodes = fetch_imdb_episodes(entry.external_id, season, limit)
+        if not episodes:
+            continue
+        add_count, update_count = upsert_episode_items(db, entry.id, episodes)
+        created += add_count
+        updated += update_count
+    return created, updated
+
+
+def run_scheduled_refresh() -> None:
+    db = SessionLocal()
+    try:
+        refresh_catalog(db)
+        refresh_series_episodes(db)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -61,7 +101,7 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     scheduler.add_job(
-        lambda: refresh_catalog(SessionLocal()),
+        run_scheduled_refresh,
         "interval",
         hours=REFRESH_INTERVAL_HOURS,
         id="catalog_refresh",
@@ -110,13 +150,29 @@ def search_catalog(q: str, db: Session = Depends(get_db)):
 @app.post("/api/catalog/refresh")
 def refresh_catalog_endpoint(db: Session = Depends(get_db)):
     added, updated = upsert_catalog_items(db, load_catalog_sources())
-    return {"added": added, "updated": updated}
+    episodes_added, episodes_updated = refresh_series_episodes(db)
+    return {
+        "added": added,
+        "updated": updated,
+        "episodes_added": episodes_added,
+        "episodes_updated": episodes_updated,
+    }
 
 
 @app.get("/api/library", response_model=List[LibraryEntryResponse])
 def list_library(db: Session = Depends(get_db)):
     entries = db.execute(select(LibraryEntry).order_by(LibraryEntry.created_at)).scalars().all()
     return entries
+
+
+@app.get("/api/catalog/{catalog_id}/episodes", response_model=List[EpisodeResponse])
+def list_episodes(catalog_id: int, db: Session = Depends(get_db)):
+    episodes = (
+        db.execute(select(Episode).where(Episode.catalog_id == catalog_id))
+        .scalars()
+        .all()
+    )
+    return episodes
 
 
 @app.post("/api/library", response_model=LibraryEntryResponse)

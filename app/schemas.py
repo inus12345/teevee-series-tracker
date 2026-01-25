@@ -47,3 +47,18 @@ class LibraryEntryResponse(LibraryEntryBase):
 
     class Config:
         orm_mode = True
+
+
+class EpisodeResponse(BaseModel):
+    id: int
+    catalog_id: int
+    title: str
+    season_number: Optional[int] = None
+    episode_number: Optional[int] = None
+    air_date: Optional[str] = None
+    description: Optional[str] = None
+    source: str
+    source_url: Optional[str] = None
+
+    class Config:
+        orm_mode = True

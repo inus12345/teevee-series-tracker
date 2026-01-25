@@ -1,15 +1,16 @@
 import argparse
+import os
 import time
 
 from sqlalchemy import text
 
 from app.db import SessionLocal, engine
-from app.models import Base
-from app.scraper import load_catalog_sources
-from app.services import upsert_catalog_items
+from app.models import Base, CatalogTitle
+from app.scraper import fetch_imdb_episodes, load_catalog_sources
+from app.services import upsert_catalog_items, upsert_episode_items
 
 
-def refresh_once() -> tuple[int, int]:
+def refresh_once() -> tuple[int, int, int, int]:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -25,7 +26,29 @@ def refresh_once() -> tuple[int, int]:
             db.execute(text("ALTER TABLE catalog_titles ADD COLUMN rating FLOAT"))
         db.commit()
         items = load_catalog_sources()
-        return upsert_catalog_items(db, items)
+        added, updated = upsert_catalog_items(db, items)
+        episodes_added = 0
+        episodes_updated = 0
+        if os.getenv("CATALOG_EPISODES_ENABLED", "true").lower() == "true":
+            season = int(os.getenv("CATALOG_IMDB_EPISODE_SEASON", "1"))
+            limit = int(os.getenv("CATALOG_IMDB_EPISODE_LIMIT", "25"))
+            series = (
+                db.query(CatalogTitle)
+                .filter(
+                    CatalogTitle.source == "imdb",
+                    CatalogTitle.media_type == "series",
+                    CatalogTitle.external_id.isnot(None),
+                )
+                .all()
+            )
+            for entry in series:
+                episodes = fetch_imdb_episodes(entry.external_id, season, limit)
+                if not episodes:
+                    continue
+                add_count, update_count = upsert_episode_items(db, entry.id, episodes)
+                episodes_added += add_count
+                episodes_updated += update_count
+        return added, updated, episodes_added, episodes_updated
     finally:
         db.close()
 
@@ -48,14 +71,22 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.once:
-        added, updated = refresh_once()
-        print(f"Catalog refresh completed. Added {added} titles. Updated {updated}.")
+        added, updated, episodes_added, episodes_updated = refresh_once()
+        print(
+            "Catalog refresh completed. "
+            f"Added {added} titles. Updated {updated}. "
+            f"Episodes added {episodes_added}. Episodes updated {episodes_updated}."
+        )
         return
 
     interval_seconds = max(args.interval_hours, 0.25) * 3600
     while True:
-        added, updated = refresh_once()
-        print(f"Catalog refresh completed. Added {added} titles. Updated {updated}.")
+        added, updated, episodes_added, episodes_updated = refresh_once()
+        print(
+            "Catalog refresh completed. "
+            f"Added {added} titles. Updated {updated}. "
+            f"Episodes added {episodes_added}. Episodes updated {episodes_updated}."
+        )
         time.sleep(interval_seconds)
 
 

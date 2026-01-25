@@ -36,3 +36,18 @@ class LibraryEntry(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     catalog_title = relationship("CatalogTitle", back_populates="library_entries")
+
+
+class Episode(Base):
+    __tablename__ = "episodes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    catalog_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    season_number = Column(Integer, nullable=True)
+    episode_number = Column(Integer, nullable=True)
+    air_date = Column(String(100), nullable=True)
+    description = Column(Text, nullable=True)
+    source = Column(String(100), nullable=False)
+    source_url = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

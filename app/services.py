@@ -3,8 +3,8 @@ from typing import Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import CatalogTitle
-from app.scraper import CatalogItem
+from app.models import CatalogTitle, Episode
+from app.scraper import CatalogItem, EpisodeItem
 
 
 def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> tuple[int, int]:
@@ -58,6 +58,57 @@ def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> tupl
                 description=item.description,
                 release_date=item.release_date,
                 rating=item.rating,
+            )
+        )
+        created += 1
+    session.commit()
+    return created, updated
+
+
+def upsert_episode_items(
+    session: Session, catalog_id: int, items: Iterable[EpisodeItem]
+) -> tuple[int, int]:
+    created = 0
+    updated = 0
+    for item in items:
+        existing = (
+            session.execute(
+                select(Episode)
+                .where(
+                    Episode.catalog_id == catalog_id,
+                    Episode.season_number == item.season_number,
+                    Episode.episode_number == item.episode_number,
+                    Episode.title == item.title,
+                )
+                .limit(1)
+            )
+            .scalars()
+            .first()
+        )
+        if existing:
+            changed = False
+            if item.air_date and not existing.air_date:
+                existing.air_date = item.air_date
+                changed = True
+            if item.description and not existing.description:
+                existing.description = item.description
+                changed = True
+            if item.source_url and not existing.source_url:
+                existing.source_url = item.source_url
+                changed = True
+            if changed:
+                updated += 1
+            continue
+        session.add(
+            Episode(
+                catalog_id=catalog_id,
+                title=item.title,
+                season_number=item.season_number,
+                episode_number=item.episode_number,
+                air_date=item.air_date,
+                description=item.description,
+                source=item.source,
+                source_url=item.source_url,
             )
         )
         created += 1

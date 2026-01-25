@@ -28,6 +28,17 @@ class CatalogItem:
     rating: float | None = None
 
 
+@dataclass
+class EpisodeItem:
+    title: str
+    season_number: int | None
+    episode_number: int | None
+    air_date: str | None
+    description: str | None
+    source: str
+    source_url: str
+
+
 def normalize_header(text: str) -> str:
     return " ".join(text.lower().split())
 
@@ -186,6 +197,43 @@ def fetch_imdb_suggestions(query: str, limit: int) -> List[CatalogItem]:
                 description=details.get("description"),
                 release_date=details.get("release_date"),
                 rating=details.get("rating"),
+            )
+        )
+    return items
+
+
+def fetch_imdb_episodes(title_id: str, season: int, limit: int) -> List[EpisodeItem]:
+    url = f"{IMDB_TITLE_URL}/{title_id}/episodes?season={season}"
+    try:
+        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException:
+        return []
+    soup = BeautifulSoup(response.text, "html.parser")
+    data: dict | None = None
+    for script in soup.select("script[type='application/ld+json']"):
+        try:
+            payload = json.loads(script.string or "")
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("@type") == "TVSeason":
+            data = payload
+            break
+    if not data:
+        return []
+    items: List[EpisodeItem] = []
+    for entry in data.get("episode", [])[:limit]:
+        if not isinstance(entry, dict):
+            continue
+        items.append(
+            EpisodeItem(
+                title=entry.get("name", ""),
+                season_number=season,
+                episode_number=entry.get("episodeNumber"),
+                air_date=entry.get("datePublished"),
+                description=entry.get("description"),
+                source="imdb",
+                source_url=entry.get("url", url),
             )
         )
     return items
