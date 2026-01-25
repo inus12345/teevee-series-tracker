@@ -6,11 +6,51 @@ const catalogStatus = document.getElementById("catalogStatus");
 const catalogStatusAlt = document.getElementById("catalogStatusAlt");
 const reloadLibrary = document.getElementById("reloadLibrary");
 const reloadCatalog = document.getElementById("reloadCatalog");
+const catalogSearch = document.getElementById("catalogSearch");
+const catalogSuggestions = document.getElementById("catalogSuggestions");
+const catalogIdInput = document.getElementById("catalogId");
 
 const truncate = (text, maxLength = 180) => {
   if (!text) return "";
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength)}...`;
+};
+
+let searchTimeout = null;
+
+const clearSuggestions = () => {
+  catalogSuggestions.innerHTML = "";
+  catalogSuggestions.classList.remove("open");
+};
+
+const renderSuggestions = (titles) => {
+  if (!titles.length) {
+    clearSuggestions();
+    return;
+  }
+  catalogSuggestions.innerHTML = titles
+    .map(
+      (title) => `
+      <button type="button" class="suggestion-item" data-id="${title.id}" data-title="${title.title}">
+        <div>
+          <strong>${title.title}</strong>
+          <span>${title.media_type}${title.year ? ` • ${title.year}` : ""}</span>
+        </div>
+      </button>
+    `
+    )
+    .join("");
+  catalogSuggestions.classList.add("open");
+};
+
+const fetchSuggestions = async (query) => {
+  const response = await fetch(`/api/catalog/search?q=${encodeURIComponent(query)}`);
+  if (!response.ok) {
+    clearSuggestions();
+    return;
+  }
+  const titles = await response.json();
+  renderSuggestions(titles);
 };
 
 const renderLibrary = (entries) => {
@@ -95,7 +135,41 @@ libraryForm.addEventListener("submit", async (event) => {
   });
 
   libraryForm.reset();
+  clearSuggestions();
   fetchLibrary();
+});
+
+catalogSearch.addEventListener("input", (event) => {
+  const query = event.target.value.trim();
+  catalogIdInput.value = "";
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  if (query.length < 2) {
+    clearSuggestions();
+    return;
+  }
+  searchTimeout = setTimeout(() => fetchSuggestions(query), 250);
+});
+
+catalogSuggestions.addEventListener("click", (event) => {
+  const button = event.target.closest(".suggestion-item");
+  if (!button) return;
+  const title = button.dataset.title;
+  const id = button.dataset.id;
+  catalogSearch.value = title;
+  const titleInput = libraryForm.querySelector("input[name='title']");
+  if (titleInput) {
+    titleInput.value = title;
+  }
+  catalogIdInput.value = id;
+  clearSuggestions();
+});
+
+document.addEventListener("click", (event) => {
+  if (!catalogSuggestions.contains(event.target) && event.target !== catalogSearch) {
+    clearSuggestions();
+  }
 });
 
 refreshCatalogButton.addEventListener("click", async () => {

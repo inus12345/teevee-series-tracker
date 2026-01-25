@@ -68,6 +68,24 @@ def list_catalog(db: Session = Depends(get_db)):
     return titles
 
 
+@app.get("/api/catalog/search", response_model=List[CatalogTitleResponse])
+def search_catalog(q: str, db: Session = Depends(get_db)):
+    query = q.strip()
+    if not query:
+        return []
+    titles = (
+        db.execute(
+            select(CatalogTitle)
+            .where(CatalogTitle.title.ilike(f"%{query}%"))
+            .order_by(CatalogTitle.title)
+            .limit(8)
+        )
+        .scalars()
+        .all()
+    )
+    return titles
+
+
 @app.post("/api/catalog/refresh")
 def refresh_catalog_endpoint(db: Session = Depends(get_db)):
     created = refresh_catalog(db)

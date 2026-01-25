@@ -45,10 +45,21 @@
             <span class="helper">Capture downloads, watch status, and notes.</span>
           </div>
           <form id="libraryForm" class="grid">
+            <label class="autocomplete">
+              Search catalog
+              <input
+                type="text"
+                id="catalogSearch"
+                placeholder="Start typing a title..."
+                autocomplete="off"
+              />
+              <div id="catalogSuggestions" class="suggestions"></div>
+            </label>
             <label>
               Title
               <input type="text" name="title" placeholder="Example: The Bear" required />
             </label>
+            <input type="hidden" name="catalog_id" id="catalogId" />
             <label>
               Status
               <select name="status">
