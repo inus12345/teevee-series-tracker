@@ -31,6 +31,19 @@ def get_db():
         db.close()
 
 
+def ensure_catalog_schema(db: Session) -> None:
+    columns = {
+        row[1] for row in db.execute("PRAGMA table_info(catalog_titles)").fetchall()
+    }
+    if "description" not in columns:
+        db.execute("ALTER TABLE catalog_titles ADD COLUMN description TEXT")
+    if "release_date" not in columns:
+        db.execute("ALTER TABLE catalog_titles ADD COLUMN release_date TEXT")
+    if "rating" not in columns:
+        db.execute("ALTER TABLE catalog_titles ADD COLUMN rating FLOAT")
+    db.commit()
+
+
 def refresh_catalog(db: Session) -> int:
     items = load_catalog_sources()
     return upsert_catalog_items(db, items)
@@ -39,6 +52,11 @@ def refresh_catalog(db: Session) -> int:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        ensure_catalog_schema(db)
+    finally:
+        db.close()
     scheduler.add_job(
         lambda: refresh_catalog(SessionLocal()),
         "interval",
