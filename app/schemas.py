@@ -10,6 +10,9 @@ class CatalogTitleBase(BaseModel):
     source: str
     source_url: Optional[str] = None
     external_id: Optional[str] = None
+    description: Optional[str] = None
+    release_date: Optional[str] = None
+    rating: Optional[float] = None
 
 
 class CatalogTitleResponse(CatalogTitleBase):

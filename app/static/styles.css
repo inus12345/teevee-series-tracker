@@ -161,6 +161,12 @@ button.ghost {
   font-size: 0.75rem;
 }
 
+.meta {
+  color: #5c667a;
+  font-size: 0.85rem;
+  margin: 0.35rem 0;
+}
+
 .pill-row {
   display: flex;
   gap: 0.5rem;

@@ -6,6 +6,12 @@ const catalogStatus = document.getElementById("catalogStatus");
 const reloadLibrary = document.getElementById("reloadLibrary");
 const reloadCatalog = document.getElementById("reloadCatalog");
 
+const truncate = (text, maxLength = 180) => {
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+};
+
 const renderLibrary = (entries) => {
   if (!entries.length) {
     libraryList.innerHTML = "<p class=\"empty\">No entries yet.</p>";
@@ -44,7 +50,18 @@ const renderCatalog = (titles) => {
           <h3>${title.title}</h3>
           <span class="status">${title.media_type}</span>
         </header>
-        <p>Source: ${title.source} ${title.year ? `(${title.year})` : ""}</p>
+        <p class="meta">
+          Source: ${title.source} ${title.year ? `(${title.year})` : ""}
+        </p>
+        <p class="meta">
+          ${title.release_date ? `Release: ${title.release_date}` : "Release date TBD"}
+          ${
+            title.rating !== null && title.rating !== undefined
+              ? `• Rating: ${title.rating}`
+              : ""
+          }
+        </p>
+        <p>${truncate(title.description) || "No description available yet."}</p>
       </article>
     `
     )

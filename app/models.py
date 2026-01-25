@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -15,6 +15,9 @@ class CatalogTitle(Base):
     source = Column(String(100), nullable=False)
     source_url = Column(String(255), nullable=True)
     external_id = Column(String(100), nullable=True)
+    description = Column(Text, nullable=True)
+    release_date = Column(String(100), nullable=True)
+    rating = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     library_entries = relationship("LibraryEntry", back_populates="catalog_title")

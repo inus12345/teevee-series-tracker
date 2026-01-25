@@ -27,6 +27,9 @@ def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> int:
                 source=item.source,
                 source_url=item.source_url,
                 external_id=item.external_id,
+                description=item.description,
+                release_date=item.release_date,
+                rating=item.rating,
             )
         )
         created += 1

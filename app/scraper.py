@@ -19,6 +19,55 @@ class CatalogItem:
     source: str
     source_url: str
     external_id: str | None = None
+    description: str | None = None
+    release_date: str | None = None
+    rating: float | None = None
+
+
+def normalize_header(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def fetch_wikipedia_summary(title_slug: str) -> str | None:
+    if not title_slug:
+        return None
+    api_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title_slug}"
+    try:
+        response = requests.get(api_url, headers={"User-Agent": USER_AGENT}, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException:
+        return None
+    data = response.json()
+    return data.get("extract")
+
+
+def extract_release_date(headers: List[str], cells: List[str]) -> str | None:
+    for idx, header in enumerate(headers):
+        if "release date" in header or "first aired" in header or "release" in header:
+            if idx < len(cells):
+                return cells[idx]
+    return None
+
+
+def extract_rating(headers: List[str], cells: List[str]) -> float | None:
+    for idx, header in enumerate(headers):
+        if "rating" in header:
+            if idx < len(cells):
+                text = cells[idx]
+                digits = "".join(ch for ch in text if ch.isdigit() or ch == ".")
+                try:
+                    return float(digits)
+                except ValueError:
+                    return None
+    return None
+
+
+def extract_description(headers: List[str], cells: List[str]) -> str | None:
+    for idx, header in enumerate(headers):
+        if "notes" in header or "description" in header:
+            if idx < len(cells):
+                return cells[idx]
+    return None
 
 
 def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[CatalogItem]:
@@ -32,7 +81,11 @@ def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[Catalog
     tables = soup.select("table.wikitable")
     items: List[CatalogItem] = []
 
+    fetch_summaries = os.getenv("CATALOG_FETCH_SUMMARIES", "true").lower() == "true"
+
     for table in tables[:2]:
+        header_cells = table.select("tr th")
+        headers = [normalize_header(cell.get_text(" ", strip=True)) for cell in header_cells]
         for row in table.select("tr"):
             cells = row.find_all("td")
             if not cells:
@@ -41,6 +94,16 @@ def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[Catalog
             title = title_cell.get_text(strip=True)
             if not title:
                 continue
+            cell_text = [cell.get_text(" ", strip=True) for cell in cells]
+            description = extract_description(headers, cell_text)
+            release_date = extract_release_date(headers, cell_text)
+            rating = extract_rating(headers, cell_text)
+            summary = None
+            if fetch_summaries:
+                link = title_cell.find("a")
+                if link and link.get("href", "").startswith("/wiki/"):
+                    title_slug = link["href"].split("/wiki/")[-1]
+                    summary = fetch_wikipedia_summary(title_slug)
             items.append(
                 CatalogItem(
                     title=title,
@@ -48,6 +111,9 @@ def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[Catalog
                     year=year,
                     source="wikipedia",
                     source_url=url,
+                    description=summary or description,
+                    release_date=release_date,
+                    rating=rating,
                 )
             )
     return items
