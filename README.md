@@ -21,7 +21,7 @@ Open http://127.0.0.1:8000.
 
 ## Catalog refresh
 
-- The scheduler refreshes the catalog every 12 hours, re-scraping configured sources and adding newly discovered titles plus metadata (description, release date, and ratings when available). Existing rows are updated when new metadata becomes available.
+- The scheduler refreshes the catalog every 12 hours (override with `CATALOG_REFRESH_HOURS`), re-scraping configured sources and adding newly discovered titles plus metadata (description, release date, and ratings when available). Existing rows are updated when new metadata becomes available.
 - Use the **Refresh catalog** button for an immediate update.
 - `app/scraper.py` is the place to add more sources (IMDb, TheMovieDB, etc.). Use `CATALOG_MIN_YEAR` to control how far back the Wikipedia ingestion runs, `CATALOG_FETCH_SUMMARIES=false` if you want to disable per-title summary lookups, and `CATALOG_ENABLE_IMDB=false` to disable IMDb scraping.
 
@@ -45,4 +45,4 @@ Some sources require API keys or have stricter robots rules. Start with public l
 
 ## IMDb data
 
-IMDb scraping is enabled by default via their suggestion API and title pages. Configure the queries with `CATALOG_IMDB_QUERIES` (comma-separated) and limit each query with `CATALOG_IMDB_LIMIT`. To build a large, accurate catalog, plan to use licensed data sources (e.g., IMDb datasets, TMDB, or other APIs) and add ingestion jobs to `app/scraper.py`.
+IMDb scraping is enabled by default via their suggestion API and title pages. Configure the queries with `CATALOG_IMDB_QUERIES` (comma-separated) and limit each query with `CATALOG_IMDB_LIMIT`. If you need to reduce scrape intensity, set `CATALOG_IMDB_DETAIL_DELAY_SECONDS` and `CATALOG_WIKI_SUMMARY_DELAY_SECONDS` to add per-item delays. To build a large, accurate catalog, plan to use licensed data sources (e.g., IMDb datasets, TMDB, or other APIs) and add ingestion jobs to `app/scraper.py`.

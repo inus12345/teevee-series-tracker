@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 from typing import List
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -21,6 +22,7 @@ from app.scraper import load_catalog_sources
 from app.services import upsert_catalog_items
 
 scheduler = BackgroundScheduler()
+REFRESH_INTERVAL_HOURS = float(os.getenv("CATALOG_REFRESH_HOURS", "12"))
 
 
 def get_db():
@@ -61,7 +63,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         lambda: refresh_catalog(SessionLocal()),
         "interval",
-        hours=12,
+        hours=REFRESH_INTERVAL_HOURS,
         id="catalog_refresh",
         replace_existing=True,
     )

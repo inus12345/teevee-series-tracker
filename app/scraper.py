@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import os
+import time
 from typing import Iterable, List
 
 import requests
@@ -85,6 +86,7 @@ def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[Catalog
     items: List[CatalogItem] = []
 
     fetch_summaries = os.getenv("CATALOG_FETCH_SUMMARIES", "true").lower() == "true"
+    summary_delay = float(os.getenv("CATALOG_WIKI_SUMMARY_DELAY_SECONDS", "0"))
 
     for table in tables[:2]:
         header_cells = table.select("tr th")
@@ -107,6 +109,8 @@ def fetch_wikipedia_titles(url: str, year: int, media_type: str) -> List[Catalog
                 if link and link.get("href", "").startswith("/wiki/"):
                     title_slug = link["href"].split("/wiki/")[-1]
                     summary = fetch_wikipedia_summary(title_slug)
+                    if summary_delay > 0:
+                        time.sleep(summary_delay)
             items.append(
                 CatalogItem(
                     title=title,
@@ -162,12 +166,15 @@ def fetch_imdb_suggestions(query: str, limit: int) -> List[CatalogItem]:
     data = response.json()
     results = data.get("d", [])[:limit]
     items: List[CatalogItem] = []
+    detail_delay = float(os.getenv("CATALOG_IMDB_DETAIL_DELAY_SECONDS", "0"))
     for result in results:
         title_id = result.get("id")
         if not title_id:
             continue
         title_url = f"{IMDB_TITLE_URL}/{title_id}/"
         details = fetch_imdb_title_details(title_url)
+        if detail_delay > 0:
+            time.sleep(detail_delay)
         items.append(
             CatalogItem(
                 title=result.get("l", ""),
