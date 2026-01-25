@@ -25,6 +25,20 @@ Open http://127.0.0.1:8000.
 - Use the **Refresh catalog** button for an immediate update.
 - `app/scraper.py` is the place to add more sources (IMDb, TheMovieDB, etc.). Use `CATALOG_MIN_YEAR` to control how far back the Wikipedia ingestion runs, and `CATALOG_FETCH_SUMMARIES=false` if you want to disable per-title summary lookups.
 
+### Dedicated refresh worker
+
+If you want a standalone background worker (e.g., for a separate container or cron job), run:
+
+```bash
+python -m app.catalog_refresh --once
+```
+
+Or run it continuously on an interval:
+
+```bash
+python -m app.catalog_refresh --interval-hours 12
+```
+
 ## Notes on scraping
 
 Some sources require API keys or have stricter robots rules. Start with public lists (like Wikipedia) and add compliant sources with proper caching and rate limits.
