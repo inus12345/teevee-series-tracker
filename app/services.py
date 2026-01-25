@@ -10,13 +10,19 @@ from app.scraper import CatalogItem
 def upsert_catalog_items(session: Session, items: Iterable[CatalogItem]) -> int:
     created = 0
     for item in items:
-        existing = session.execute(
-            select(CatalogTitle).where(
-                CatalogTitle.title == item.title,
-                CatalogTitle.source == item.source,
-                CatalogTitle.media_type == item.media_type,
+        existing = (
+            session.execute(
+                select(CatalogTitle)
+                .where(
+                    CatalogTitle.title == item.title,
+                    CatalogTitle.source == item.source,
+                    CatalogTitle.media_type == item.media_type,
+                )
+                .limit(1)
             )
-        ).scalar_one_or_none()
+            .scalars()
+            .first()
+        )
         if existing:
             continue
         session.add(
