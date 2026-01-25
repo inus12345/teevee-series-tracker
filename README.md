@@ -47,3 +47,17 @@ Some sources require API keys or have stricter robots rules. Start with public l
 ## IMDb data
 
 IMDb scraping is enabled by default via their suggestion API and title pages. Configure the queries with `CATALOG_IMDB_QUERIES` (comma-separated) and limit each query with `CATALOG_IMDB_LIMIT`. If you need to reduce scrape intensity, set `CATALOG_IMDB_DETAIL_DELAY_SECONDS` and `CATALOG_WIKI_SUMMARY_DELAY_SECONDS` to add per-item delays. To build a large, accurate catalog, plan to use licensed data sources (e.g., IMDb datasets, TMDB, or other APIs) and add ingestion jobs to `app/scraper.py`.
+
+### Bulk IMDb dataset ingestion
+
+For large-scale ingestion (millions of titles and episodes), use the IMDb TSV datasets and the bulk ingest script:
+
+```bash
+python -m app.bulk_ingest \
+  --basics /path/to/title.basics.tsv.gz \
+  --ratings /path/to/title.ratings.tsv.gz \
+  --episodes /path/to/title.episode.tsv.gz \
+  --episode-titles /path/to/title.basics.tsv.gz
+```
+
+Use `--limit` during testing to cap rows per file.
