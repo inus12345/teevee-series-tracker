@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import time
 
@@ -8,6 +9,10 @@ from app.db import SessionLocal, engine
 from app.models import Base, CatalogTitle
 from app.scraper import fetch_imdb_episodes, load_catalog_sources
 from app.services import upsert_catalog_items, upsert_episode_items
+
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def refresh_once() -> tuple[int, int, int, int]:
@@ -25,8 +30,10 @@ def refresh_once() -> tuple[int, int, int, int]:
         if "rating" not in columns:
             db.execute(text("ALTER TABLE catalog_titles ADD COLUMN rating FLOAT"))
         db.commit()
+        logger.info("Starting catalog scrape.")
         items = load_catalog_sources()
         added, updated = upsert_catalog_items(db, items)
+        logger.info("Catalog scrape done. Added %s, updated %s.", added, updated)
         episodes_added = 0
         episodes_updated = 0
         if os.getenv("CATALOG_EPISODES_ENABLED", "true").lower() == "true":
@@ -41,6 +48,7 @@ def refresh_once() -> tuple[int, int, int, int]:
                 )
                 .all()
             )
+            logger.info("Starting episode scrape for %s series.", len(series))
             for entry in series:
                 episodes = fetch_imdb_episodes(entry.external_id, season, limit)
                 if not episodes:
@@ -48,6 +56,9 @@ def refresh_once() -> tuple[int, int, int, int]:
                 add_count, update_count = upsert_episode_items(db, entry.id, episodes)
                 episodes_added += add_count
                 episodes_updated += update_count
+            logger.info(
+                "Episode scrape done. Added %s, updated %s.", episodes_added, episodes_updated
+            )
         return added, updated, episodes_added, episodes_updated
     finally:
         db.close()
