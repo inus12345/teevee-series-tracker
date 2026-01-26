@@ -47,7 +47,9 @@ Some sources require API keys or have stricter robots rules. Start with public l
 Additional sources supported:
 - TMDb API (`TMDB_API_KEY`, `TMDB_PAGE_LIMIT`)
 - TVmaze API (`TVMAZE_ENABLED`, `TVMAZE_PAGE_LIMIT`)
-- OMDb API (`OMDB_API_KEY`, `OMDB_QUERIES`)
+- OMDb API (`OMDB_API_KEY`, `OMDB_QUERIES`, `OMDB_PAGE_LIMIT`)
+
+Throttle crawling with `CATALOG_PAGE_DELAY_SECONDS` (e.g., set to `3` for ~one page every few seconds).
 
 ## IMDb data
 

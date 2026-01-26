@@ -276,9 +276,10 @@ def fetch_tmdb_titles() -> List[CatalogItem]:
     if not api_key:
         return []
     page_limit = int(os.getenv("TMDB_PAGE_LIMIT", "2"))
+    page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     items: List[CatalogItem] = []
     for page in range(1, page_limit + 1):
-        for endpoint, media_type in (("movie/popular", "movie"), ("tv/popular", "series")):
+        for endpoint, media_type in (("discover/movie", "movie"), ("discover/tv", "series")):
             try:
                 response = requests.get(
                     f"{TMDB_API_URL}/{endpoint}",
@@ -309,6 +310,8 @@ def fetch_tmdb_titles() -> List[CatalogItem]:
                         rating=entry.get("vote_average"),
                     )
                 )
+            if page_delay > 0:
+                time.sleep(page_delay)
     return items
 
 
@@ -316,6 +319,7 @@ def fetch_tvmaze_titles() -> List[CatalogItem]:
     if os.getenv("TVMAZE_ENABLED", "true").lower() != "true":
         return []
     page_limit = int(os.getenv("TVMAZE_PAGE_LIMIT", "2"))
+    page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     items: List[CatalogItem] = []
     for page in range(page_limit):
         try:
@@ -347,6 +351,8 @@ def fetch_tvmaze_titles() -> List[CatalogItem]:
                     rating=(entry.get("rating") or {}).get("average"),
                 )
             )
+        if page_delay > 0:
+            time.sleep(page_delay)
     return items
 
 
@@ -360,34 +366,39 @@ def fetch_omdb_titles() -> List[CatalogItem]:
         if query.strip()
     ]
     items: List[CatalogItem] = []
+    page_limit = int(os.getenv("OMDB_PAGE_LIMIT", "2"))
+    page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     for query in queries:
-        try:
-            response = requests.get(
-                OMDB_API_URL,
-                params={"apikey": api_key, "s": query},
-                headers={"User-Agent": USER_AGENT},
-                timeout=20,
-            )
-            response.raise_for_status()
-        except requests.RequestException:
-            continue
-        data = response.json()
-        for entry in data.get("Search", []):
-            imdb_id = entry.get("imdbID")
-            title = entry.get("Title")
-            if not title:
-                continue
-            items.append(
-                CatalogItem(
-                    title=title,
-                    media_type="series" if entry.get("Type") == "series" else "movie",
-                    year=parse_year(entry.get("Year")),
-                    source="omdb",
-                    source_url=f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else None,
-                    external_id=imdb_id,
-                    release_date=entry.get("Year"),
+        for page in range(1, page_limit + 1):
+            try:
+                response = requests.get(
+                    OMDB_API_URL,
+                    params={"apikey": api_key, "s": query, "page": page},
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=20,
                 )
-            )
+                response.raise_for_status()
+            except requests.RequestException:
+                continue
+            data = response.json()
+            for entry in data.get("Search", []):
+                imdb_id = entry.get("imdbID")
+                title = entry.get("Title")
+                if not title:
+                    continue
+                items.append(
+                    CatalogItem(
+                        title=title,
+                        media_type="series" if entry.get("Type") == "series" else "movie",
+                        year=parse_year(entry.get("Year")),
+                        source="omdb",
+                        source_url=f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else None,
+                        external_id=imdb_id,
+                        release_date=entry.get("Year"),
+                    )
+                )
+            if page_delay > 0:
+                time.sleep(page_delay)
     return items
 
 
