@@ -50,6 +50,7 @@ Additional sources supported:
 - OMDb API (`OMDB_API_KEY`, `OMDB_QUERIES`, `OMDB_PAGE_LIMIT`)
 
 Throttle crawling with `CATALOG_PAGE_DELAY_SECONDS` (e.g., set to `3` for ~one page every few seconds).
+Run API sources in parallel with `CATALOG_PARALLEL_SOURCES=true`.
 
 ## IMDb data
 

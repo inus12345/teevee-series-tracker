@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Iterable, List
 
 import requests
@@ -458,6 +459,17 @@ def load_catalog_sources() -> Iterable[CatalogItem]:
     if os.getenv("CATALOG_ENABLE_IMDB", "true").lower() == "true":
         yield from fetch_imdb_placeholder()
 
-    yield from fetch_tmdb_titles()
-    yield from fetch_tvmaze_titles()
-    yield from fetch_omdb_titles()
+    if os.getenv("CATALOG_PARALLEL_SOURCES", "false").lower() == "true":
+        source_functions = [fetch_tmdb_titles, fetch_tvmaze_titles, fetch_omdb_titles]
+        with ThreadPoolExecutor(max_workers=len(source_functions)) as executor:
+            futures = {executor.submit(func): func.__name__ for func in source_functions}
+            for future in as_completed(futures):
+                try:
+                    items = future.result()
+                except Exception:  # noqa: BLE001
+                    continue
+                yield from items
+    else:
+        yield from fetch_tmdb_titles()
+        yield from fetch_tvmaze_titles()
+        yield from fetch_omdb_titles()
