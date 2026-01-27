@@ -152,10 +152,11 @@ def fetch_imdb_placeholder() -> List[CatalogItem]:
     ]
     if not queries:
         return []
-    limit = int(os.getenv("CATALOG_IMDB_LIMIT", "20"))
+    limit = int(os.getenv("CATALOG_IMDB_LIMIT", "50"))
     items: List[CatalogItem] = []
     for query in queries:
         items.extend(fetch_imdb_suggestions(query, limit))
+    logger.info("IMDb suggestions fetched %s titles.", len(items))
     return items
 
 
@@ -276,7 +277,7 @@ def fetch_tmdb_titles() -> List[CatalogItem]:
     api_key = os.getenv("TMDB_API_KEY")
     if not api_key:
         return []
-    page_limit = int(os.getenv("TMDB_PAGE_LIMIT", "2"))
+    page_limit = int(os.getenv("TMDB_PAGE_LIMIT", "5"))
     page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     items: List[CatalogItem] = []
     for page in range(1, page_limit + 1):
@@ -313,13 +314,14 @@ def fetch_tmdb_titles() -> List[CatalogItem]:
                 )
             if page_delay > 0:
                 time.sleep(page_delay)
+    logger.info("TMDb fetched %s titles across %s pages.", len(items), page_limit)
     return items
 
 
 def fetch_tvmaze_titles() -> List[CatalogItem]:
     if os.getenv("TVMAZE_ENABLED", "true").lower() != "true":
         return []
-    page_limit = int(os.getenv("TVMAZE_PAGE_LIMIT", "2"))
+    page_limit = int(os.getenv("TVMAZE_PAGE_LIMIT", "5"))
     page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     items: List[CatalogItem] = []
     for page in range(page_limit):
@@ -354,6 +356,7 @@ def fetch_tvmaze_titles() -> List[CatalogItem]:
             )
         if page_delay > 0:
             time.sleep(page_delay)
+    logger.info("TVmaze fetched %s series across %s pages.", len(items), page_limit)
     return items
 
 
@@ -381,6 +384,7 @@ def fetch_tvmaze_episodes(show_id: str, limit: int) -> List[EpisodeItem]:
                 source_url=entry.get("url"),
             )
         )
+    logger.info("TVmaze fetched %s episodes for show %s.", len(items), show_id)
     return items
 
 
@@ -394,7 +398,7 @@ def fetch_omdb_titles() -> List[CatalogItem]:
         if query.strip()
     ]
     items: List[CatalogItem] = []
-    page_limit = int(os.getenv("OMDB_PAGE_LIMIT", "2"))
+    page_limit = int(os.getenv("OMDB_PAGE_LIMIT", "5"))
     page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     for query in queries:
         for page in range(1, page_limit + 1):
@@ -427,6 +431,7 @@ def fetch_omdb_titles() -> List[CatalogItem]:
                 )
             if page_delay > 0:
                 time.sleep(page_delay)
+    logger.info("OMDb fetched %s titles across %s pages.", len(items), page_limit)
     return items
 
 
