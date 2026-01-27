@@ -357,6 +357,33 @@ def fetch_tvmaze_titles() -> List[CatalogItem]:
     return items
 
 
+def fetch_tvmaze_episodes(show_id: str, limit: int) -> List[EpisodeItem]:
+    try:
+        response = requests.get(
+            f"{TVMAZE_API_URL}/shows/{show_id}/episodes",
+            headers={"User-Agent": USER_AGENT},
+            timeout=20,
+        )
+        response.raise_for_status()
+    except requests.RequestException:
+        return []
+    data = response.json()
+    items: List[EpisodeItem] = []
+    for entry in data[:limit]:
+        items.append(
+            EpisodeItem(
+                title=strip_html(entry.get("name")),
+                season_number=entry.get("season"),
+                episode_number=entry.get("number"),
+                air_date=entry.get("airdate"),
+                description=strip_html(entry.get("summary")),
+                source="tvmaze",
+                source_url=entry.get("url"),
+            )
+        )
+    return items
+
+
 def fetch_omdb_titles() -> List[CatalogItem]:
     api_key = os.getenv("OMDB_API_KEY")
     if not api_key:
