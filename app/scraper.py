@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Iterable, List
 
@@ -278,9 +279,11 @@ def fetch_tmdb_titles() -> List[CatalogItem]:
     if not api_key:
         return []
     page_limit = int(os.getenv("TMDB_PAGE_LIMIT", "5"))
+    start_page = int(os.getenv("TMDB_START_PAGE", "1"))
     page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     items: List[CatalogItem] = []
-    for page in range(1, page_limit + 1):
+    end_page = start_page + page_limit
+    for page in range(start_page, end_page):
         for endpoint, media_type in (("discover/movie", "movie"), ("discover/tv", "series")):
             try:
                 response = requests.get(
@@ -322,9 +325,11 @@ def fetch_tvmaze_titles() -> List[CatalogItem]:
     if os.getenv("TVMAZE_ENABLED", "true").lower() != "true":
         return []
     page_limit = int(os.getenv("TVMAZE_PAGE_LIMIT", "5"))
+    start_page = int(os.getenv("TVMAZE_START_PAGE", "0"))
     page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     items: List[CatalogItem] = []
-    for page in range(page_limit):
+    end_page = start_page + page_limit
+    for page in range(start_page, end_page):
         try:
             response = requests.get(
                 f"{TVMAZE_API_URL}/shows",
@@ -399,9 +404,11 @@ def fetch_omdb_titles() -> List[CatalogItem]:
     ]
     items: List[CatalogItem] = []
     page_limit = int(os.getenv("OMDB_PAGE_LIMIT", "5"))
+    start_page = int(os.getenv("OMDB_START_PAGE", "1"))
     page_delay = float(os.getenv("CATALOG_PAGE_DELAY_SECONDS", "0"))
     for query in queries:
-        for page in range(1, page_limit + 1):
+        end_page = start_page + page_limit
+        for page in range(start_page, end_page):
             try:
                 response = requests.get(
                     OMDB_API_URL,
@@ -433,6 +440,48 @@ def fetch_omdb_titles() -> List[CatalogItem]:
                 time.sleep(page_delay)
     logger.info("OMDb fetched %s titles across %s pages.", len(items), page_limit)
     return items
+
+
+def load_scrape_state() -> dict:
+    state_file = Path(os.getenv("CATALOG_STATE_FILE", "app/scrape_state.json"))
+    if not state_file.exists():
+        return {}
+    try:
+        return json.loads(state_file.read_text())
+    except json.JSONDecodeError:
+        return {}
+
+
+def save_scrape_state(state: dict) -> None:
+    state_file = Path(os.getenv("CATALOG_STATE_FILE", "app/scrape_state.json"))
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.write_text(json.dumps(state, indent=2))
+
+
+def apply_paged_state(state: dict) -> None:
+    tmdb_page = state.get("tmdb_page", 0) + 1
+    tvmaze_page = state.get("tvmaze_page", -1) + 1
+    omdb_pages = state.get("omdb_pages", {})
+    os.environ["TMDB_START_PAGE"] = str(tmdb_page)
+    os.environ["TVMAZE_START_PAGE"] = str(tvmaze_page)
+    if isinstance(omdb_pages, dict):
+        os.environ["OMDB_START_PAGE"] = str(omdb_pages.get("default", 0) + 1)
+
+
+def update_paged_state(state: dict) -> None:
+    tmdb_start = int(os.getenv("TMDB_START_PAGE", "1"))
+    tmdb_limit = int(os.getenv("TMDB_PAGE_LIMIT", "5"))
+    tvmaze_start = int(os.getenv("TVMAZE_START_PAGE", "0"))
+    tvmaze_limit = int(os.getenv("TVMAZE_PAGE_LIMIT", "5"))
+    omdb_start = int(os.getenv("OMDB_START_PAGE", "1"))
+    omdb_limit = int(os.getenv("OMDB_PAGE_LIMIT", "5"))
+    state["tmdb_page"] = tmdb_start + tmdb_limit - 1
+    state["tvmaze_page"] = tvmaze_start + tvmaze_limit - 1
+    omdb_pages = state.get("omdb_pages", {})
+    if not isinstance(omdb_pages, dict):
+        omdb_pages = {}
+    omdb_pages["default"] = omdb_start + omdb_limit - 1
+    state["omdb_pages"] = omdb_pages
 
 
 def parse_year(value: str | None) -> int | None:
@@ -480,6 +529,11 @@ def wikipedia_collection_sources() -> Iterable[tuple[str, int | None, str]]:
 
 
 def load_catalog_sources() -> Iterable[CatalogItem]:
+    state_enabled = os.getenv("CATALOG_STATEFUL_PAGING", "true").lower() == "true"
+    state = load_scrape_state() if state_enabled else {}
+    if state_enabled:
+        apply_paged_state(state)
+
     current_year = datetime.utcnow().year
     min_year = int(os.getenv("CATALOG_MIN_YEAR", current_year - 1))
     for url, year, media_type in wikipedia_sources(min_year, current_year):
@@ -491,7 +545,7 @@ def load_catalog_sources() -> Iterable[CatalogItem]:
     if os.getenv("CATALOG_ENABLE_IMDB", "true").lower() == "true":
         yield from fetch_imdb_placeholder()
 
-    if os.getenv("CATALOG_PARALLEL_SOURCES", "false").lower() == "true":
+    if os.getenv("CATALOG_PARALLEL_SOURCES", "false").lower() == "true" and not state_enabled:
         source_functions = [fetch_tmdb_titles, fetch_tvmaze_titles, fetch_omdb_titles]
         with ThreadPoolExecutor(max_workers=len(source_functions)) as executor:
             futures = {executor.submit(func): func.__name__ for func in source_functions}
@@ -505,3 +559,7 @@ def load_catalog_sources() -> Iterable[CatalogItem]:
         yield from fetch_tmdb_titles()
         yield from fetch_tvmaze_titles()
         yield from fetch_omdb_titles()
+
+    if state_enabled:
+        update_paged_state(state)
+        save_scrape_state(state)

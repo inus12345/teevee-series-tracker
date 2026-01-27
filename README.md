@@ -51,6 +51,7 @@ Additional sources supported:
 
 Throttle crawling with `CATALOG_PAGE_DELAY_SECONDS` (e.g., set to `3` for ~one page every few seconds).
 Run API sources in parallel with `CATALOG_PARALLEL_SOURCES=true`.
+Enable stateful paging with `CATALOG_STATEFUL_PAGING=true` to continue where the last run left off (stored in `app/scrape_state.json` by default).
 
 ## IMDb data
 
