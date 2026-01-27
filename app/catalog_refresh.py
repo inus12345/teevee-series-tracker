@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from app.db import SessionLocal, engine
 from app.models import Base, CatalogTitle
-from app.scraper import fetch_imdb_episodes, load_catalog_sources
+from app.scraper import fetch_imdb_episodes, fetch_tvmaze_episodes, load_catalog_sources
 from app.services import upsert_catalog_items, upsert_episode_items
 
 
@@ -37,12 +37,13 @@ def refresh_once() -> tuple[int, int, int, int]:
         episodes_added = 0
         episodes_updated = 0
         if os.getenv("CATALOG_EPISODES_ENABLED", "true").lower() == "true":
-            season = int(os.getenv("CATALOG_IMDB_EPISODE_SEASON", "1"))
-            limit = int(os.getenv("CATALOG_IMDB_EPISODE_LIMIT", "25"))
+            imdb_season = int(os.getenv("CATALOG_IMDB_EPISODE_SEASON", "1"))
+            imdb_limit = int(os.getenv("CATALOG_IMDB_EPISODE_LIMIT", "25"))
+            tvmaze_limit = int(os.getenv("CATALOG_TVMAZE_EPISODE_LIMIT", "50"))
             series = (
                 db.query(CatalogTitle)
                 .filter(
-                    CatalogTitle.source == "imdb",
+                    CatalogTitle.source.in_(["imdb", "tvmaze"]),
                     CatalogTitle.media_type == "series",
                     CatalogTitle.external_id.isnot(None),
                 )
@@ -50,7 +51,11 @@ def refresh_once() -> tuple[int, int, int, int]:
             )
             logger.info("Starting episode scrape for %s series.", len(series))
             for entry in series:
-                episodes = fetch_imdb_episodes(entry.external_id, season, limit)
+                episodes = []
+                if entry.source == "imdb":
+                    episodes = fetch_imdb_episodes(entry.external_id, imdb_season, imdb_limit)
+                elif entry.source == "tvmaze":
+                    episodes = fetch_tvmaze_episodes(entry.external_id, tvmaze_limit)
                 if not episodes:
                     continue
                 add_count, update_count = upsert_episode_items(db, entry.id, episodes)
