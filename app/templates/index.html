@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeeVee Tracker</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <nav class="top-nav">
+        <div class="brand">
+          <span class="brand-mark">TV</span>
+          <span>TeeVee Tracker</span>
+        </div>
+        <div class="nav-actions">
+          <button id="refreshCatalog" class="secondary">Refresh catalog</button>
+          <span id="catalogStatus" class="status-pill">Catalog idle</span>
+        </div>
+      </nav>
+
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Personal library dashboard</p>
+          <h1>Track downloaded and watched movies & series.</h1>
+          <p class="subtitle">
+            Keep a running catalog of what you have, what you watched, and what needs
+            to be downloaded. The catalog refreshes from public sources on a schedule.
+          </p>
+        </div>
+        <div class="hero-card">
+          <h3>Catalog refresh</h3>
+          <p>Runs in the background every 12 hours and can be triggered on demand.</p>
+          <div class="hero-status">
+            <span>Latest sync:</span>
+            <strong id="catalogStatusAlt">Just now</strong>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Add to your library</h2>
+            <span class="helper">Capture downloads, watch status, and notes.</span>
+          </div>
+          <form id="libraryForm" class="grid">
+            <label class="autocomplete">
+              Search catalog
+              <input
+                type="text"
+                id="catalogSearch"
+                placeholder="Start typing a title..."
+                autocomplete="off"
+              />
+              <div id="catalogSuggestions" class="suggestions"></div>
+            </label>
+            <label>
+              Title
+              <input type="text" name="title" placeholder="Example: The Bear" required />
+            </label>
+            <input type="hidden" name="catalog_id" id="catalogId" />
+            <label>
+              Status
+              <select name="status">
+                <option value="planned">Planned</option>
+                <option value="downloaded">Downloaded</option>
+                <option value="watching">Watching</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+            <label>
+              Notes
+              <input type="text" name="notes" placeholder="Where stored, tags, etc." />
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="downloaded" />
+              Downloaded
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="watched" />
+              Watched
+            </label>
+            <button type="submit">Add entry</button>
+          </form>
+        </section>
+
+        <section class="split">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Library</h2>
+              <button id="reloadLibrary" class="ghost">Reload</button>
+            </div>
+            <div id="libraryList" class="list"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Catalog feed</h2>
+              <button id="reloadCatalog" class="ghost">Reload</button>
+            </div>
+            <div id="catalogList" class="list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
